@@ -304,17 +304,50 @@ for r in d.get('result', []):
             continue
         fi
 
-        if [ "$text" = "/cpolar" ] || [ "$text" = "/cpolar@${BOT_USERNAME}" ]; then
-            log "Received /cpolar command"
-            local tunnels
-            tunnels=$(ensure_and_get)
-            if [ -n "$tunnels" ]; then
-                printf '%s\n' "$tunnels" > "$STATE_FILE"
-                send_telegram "$chat_id" "$(format_tunnels "$tunnels")"
-                log "Replied tunnel list"
-            else
-                send_telegram "$chat_id" "鉂?Failed to get tunnel info"
-            fi
+        local cmd=""
+        case "$text" in
+            "/cpolar"|"/cpolar@${BOT_USERNAME}") cmd="cpolar" ;;
+            "/status"|"/status@${BOT_USERNAME}") cmd="status" ;;
+            "/docker"|"/docker@${BOT_USERNAME}") cmd="docker" ;;
+            "/top"|"/top@${BOT_USERNAME}") cmd="top" ;;
+            "/disk"|"/disk@${BOT_USERNAME}") cmd="disk" ;;
+            "/net"|"/net@${BOT_USERNAME}") cmd="net" ;;
+            "/help"|"/help@${BOT_USERNAME}") cmd="help" ;;
+        esac
+
+        if [ -n "$cmd" ]; then
+            log "Received /$cmd command"
+            case "$cmd" in
+                cpolar)
+                    local tunnels
+                    tunnels=$(ensure_and_get)
+                    if [ -n "$tunnels" ]; then
+                        printf '%s\n' "$tunnels" > "$STATE_FILE"
+                        send_telegram "$chat_id" "$(format_tunnels "$tunnels")"
+                    else
+                        send_telegram "$chat_id" "鉂?鑾峰彇闅ч亾淇℃伅澶辫触"
+                    fi
+                    ;;
+                status)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" status)"
+                    ;;
+                docker)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" docker)"
+                    ;;
+                top)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" top)"
+                    ;;
+                disk)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" disk)"
+                    ;;
+                net)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" network)"
+                    ;;
+                help)
+                    send_telegram "$chat_id" "馃摉 <b>鍙敤鍛戒护</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n/cpolar - 闅ч亾鐘舵€乗n/status - 绯荤粺姒傝\n/docker - 瀹瑰櫒鍒楄〃\n/top - CPU 杩涚▼\n/disk - 纾佺洏浣跨敤\n/net - 缃戠粶绔彛\n/help - 甯姪"
+                    ;;
+            esac
+            log "Replied /$cmd"
         fi
     done
 }
