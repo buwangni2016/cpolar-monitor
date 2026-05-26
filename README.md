@@ -38,6 +38,18 @@ chmod +x cpolar-monitor.sh
 2. 缁?Bot 鍙戜换鎰忔秷鎭?3. 璁块棶 `https://api.telegram.org/bot<token>/getUpdates` 鑾峰彇浣犵殑 chat_id
 4. 濉叆 `.env` 鏂囦欢
 
+## Telegram Bot 鍛戒护
+
+| 鍛戒护 | 璇存槑 |
+|------|------|
+| `/cpolar` | 鏌ョ湅褰撳墠闅ч亾 |
+| `/status` | 绯荤粺姒傝锛圕PU/鍐呭瓨/纾佺洏/鏈嶅姟锛?|
+| `/docker` | Docker 瀹瑰櫒鍒楄〃 |
+| `/top` | CPU 鍗犵敤 Top 5 杩涚▼ |
+| `/disk` | 纾佺洏浣跨敤璇︽儏 |
+| `/net` | 缃戠粶鐩戝惉绔彛 |
+| `/help` | 鍛戒护甯姪 |
+
 ## 閫氱煡鏍峰紡
 
 **瀹氭椂妫€鏌?/ /cpolar 鏌ヨ锛?*
