@@ -1,0 +1,6 @@
+.env
+.cpolar_cookie
+.tunnel_state
+.tg_offset
+cpolar-monitor.log
+cpolar-monitor.lock
