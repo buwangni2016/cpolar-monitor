@@ -88,11 +88,83 @@ get_disk() {
     printf '%s' "$msg"
 }
 
+get_ip() {
+    local msg ip
+    ip=$(curl -s --connect-timeout 5 ifconfig.me 2>/dev/null || echo "N/A")
+    msg=$(printf "馃寪 <b>鍏綉 IP</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n")
+    msg=$(printf "%s馃摗 %s\n" "$msg" "$ip")
+    printf '%s' "$msg"
+}
+
+get_users() {
+    local msg
+    msg=$(printf "馃懁 <b>鍦ㄧ嚎鐢ㄦ埛</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n")
+    local who_output
+    who_output=$(who 2>/dev/null)
+    if [ -n "$who_output" ]; then
+        while IFS= read -r line; do
+            msg=$(printf "%s%s\n" "$msg" "$line")
+        done <<< "$who_output"
+    else
+        msg=$(printf "%s鏃犲湪绾跨敤鎴穃n" "$msg")
+    fi
+    printf '%s' "$msg"
+}
+
+get_log() {
+    local msg
+    msg=$(printf "馃搵 <b>鏈€杩戠郴缁熸棩蹇?/b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n")
+    while IFS= read -r line; do
+        msg=$(printf "%s%s\n" "$msg" "$line")
+    done < <(journalctl --no-pager -n 15 --output=short-iso 2>/dev/null | tail -15)
+    printf '%s' "$msg"
+}
+
+get_fail2ban() {
+    local msg
+    msg=$(printf "馃洝 <b>Fail2ban 鐘舵€?/b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n")
+    if command -v fail2ban-client &>/dev/null; then
+        local jails
+        jails=$(fail2ban-client status 2>/dev/null | grep 'Jail list' | sed 's/.*:\s*//')
+        if [ -n "$jails" ]; then
+            for jail in $jails; do
+                local banned
+                banned=$(fail2ban-client status "$jail" 2>/dev/null | grep 'Currently banned' | awk '{print $NF}')
+                msg=$(printf "%s馃敀 %s: %s 涓皝绂乗n" "$msg" "$jail" "$banned")
+            done
+        else
+            msg=$(printf "%s鏃犳椿璺?jail\n" "$msg")
+        fi
+    else
+        msg=$(printf "%s鏈畨瑁?fail2ban\n" "$msg")
+    fi
+    printf '%s' "$msg"
+}
+
+get_update() {
+    local msg
+    msg=$(printf "馃摝 <b>鍙洿鏂板寘</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n")
+    local count
+    count=$(apt list --upgradable 2>/dev/null | grep -c 'upgradable' || echo '0')
+    msg=$(printf "%s%s 涓寘鍙洿鏂癨n" "$msg" "$count")
+    if [ "$count" -gt 0 ] && [ "$count" -le 10 ]; then
+        while IFS= read -r line; do
+            msg=$(printf "%s  %s\n" "$msg" "$line")
+        done < <(apt list --upgradable 2>/dev/null | grep 'upgradable' | awk -F/ '{print $1}' | head -10)
+    fi
+    printf '%s' "$msg"
+}
+
 case "${1:-status}" in
-    status)  get_status ;;
-    docker)  get_docker ;;
-    top)     get_top ;;
-    network) get_network ;;
-    disk)    get_disk ;;
-    *)       echo "Unknown command: $1" ;;
+    status)    get_status ;;
+    docker)    get_docker ;;
+    top)       get_top ;;
+    network)   get_network ;;
+    disk)      get_disk ;;
+    ip)        get_ip ;;
+    users)     get_users ;;
+    log)       get_log ;;
+    fail2ban)  get_fail2ban ;;
+    update)    get_update ;;
+    *)         echo "Unknown: $1" ;;
 esac
