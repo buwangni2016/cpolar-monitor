@@ -271,12 +271,23 @@ do_telegram_poll() {
     [ -z "$updates" ] && return 0
     printf '%s' "$updates" | grep -q '"update_id"' || return 0
 
-    local uid
+    local uid last_uid
     for uid in $(printf '%s' "$updates" | grep -oP '"update_id":\K\d+'); do
-        offset=$((uid + 1))
-        printf '%s\n' "$offset" > "$OFFSET_FILE"
+        last_uid=$uid
 
-        local text chat_id
+        local text chat_id is_bot
+        is_bot=$(python3 -c "
+import json, sys
+d = json.loads(sys.stdin.read())
+for r in d.get('result', []):
+    if r.get('update_id') == ${uid}:
+        m = r.get('message', {})
+        print('1' if m.get('from', {}).get('is_bot') else '0')
+        break
+" <<< "$updates" 2>/dev/null || true)
+        # Skip bot's own messages
+        [ "$is_bot" = "1" ] && continue
+
         text=$(python3 -c "
 import json, sys
 d = json.loads(sys.stdin.read())
@@ -392,6 +403,11 @@ for r in d.get('result', []):
             log "Replied /$cmd"
         fi
     done
+
+    # Update offset once after processing all updates
+    if [ -n "$last_uid" ]; then
+        printf '%s\n' "$((last_uid + 1))" > "$OFFSET_FILE"
+    fi
 }
 
 # ============ Daemon Loop ============
