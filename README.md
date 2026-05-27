@@ -32,27 +32,20 @@ chmod +x cpolar-monitor.sh
 | `./cpolar-monitor.sh log [n]` | 鏌ョ湅鏈€杩?n 琛屾棩蹇楋紙榛樿 20锛?|
 | `./cpolar-monitor.sh run` | 鍓嶅彴杩愯锛堣皟璇曠敤锛?|
 
+## Telegram Bot 鍛戒护
+
+| 鍛戒护 | 璇存槑 |
+|------|------|
+| `/cpolar` | 鏌ョ湅褰撳墠闅ч亾鐘舵€?|
+
 ## Telegram Bot 閰嶇疆
 
 1. 鎵?[@BotFather](https://t.me/BotFather) 鍒涘缓 Bot锛岃幏鍙?Token
 2. 缁?Bot 鍙戜换鎰忔秷鎭?3. 璁块棶 `https://api.telegram.org/bot<token>/getUpdates` 鑾峰彇浣犵殑 chat_id
 4. 濉叆 `.env` 鏂囦欢
 
-## Telegram Bot 鍛戒护
-
-| 鍛戒护 | 璇存槑 |
-|------|------|
-| `/cpolar` | 鏌ョ湅褰撳墠闅ч亾 |
-| `/status` | 绯荤粺姒傝锛圕PU/鍐呭瓨/纾佺洏/鏈嶅姟锛?|
-| `/docker` | Docker 瀹瑰櫒鍒楄〃 |
-| `/top` | CPU 鍗犵敤 Top 5 杩涚▼ |
-| `/disk` | 纾佺洏浣跨敤璇︽儏 |
-| `/net` | 缃戠粶鐩戝惉绔彛 |
-| `/help` | 鍛戒护甯姪 |
-
 ## 閫氱煡鏍峰紡
 
-**瀹氭椂妫€鏌?/ /cpolar 鏌ヨ锛?*
 ```
 馃搵 褰撳墠 cpolar 闅ч亾
 
@@ -66,33 +59,15 @@ chmod +x cpolar-monitor.sh
 馃晲 2026-05-27 05:43:24
 ```
 
-**闅ч亾鍙樻洿閫氱煡锛?*
-```
-鈿?cpolar 闅ч亾鍙樻洿
-鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣
-馃啎 鏂板:
-馃煝 moviepolite 鈫?https://xxxx.r9.cpolar.cn
-鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣
-鈿狅笍 璇峰強鏃舵洿鏂拌繛鎺ラ厤缃?```
-
-## 宸ヤ綔鍘熺悊
-
-1. 鐧诲綍 cpolar 绠＄悊闈㈡澘锛坈ookie 鎸佷箙鍖栵級
-2. 瑙ｆ瀽鐘舵€侀〉闈?HTML锛屾彁鍙栭毀閬撳悕鍜?URL
-3. 涓庝笂娆¤褰曞姣旓紝妫€娴嬫柊澧?娑堝け
-4. 鍙樺寲鏃跺彂閫?Telegram 閫氱煡
-5. 鍚屾椂杞 Telegram API锛屽搷搴?`/cpolar` 鍛戒护
-
 ## 渚濊禆
 
 - bash 4+
 - curl
-- python3锛堢敤浜?HTML 瑙ｆ瀽鍜?JSON 澶勭悊锛?
+- python3锛圚TML 瑙ｆ瀽锛?
 ## 瀹夊叏鎻愮ず
 
 - 鈿狅笍 **涓嶈**灏?`.env` 鏂囦欢鎻愪氦鍒?Git
-- `.env` 宸插湪 `.gitignore` 涓帓闄?- Telegram Bot Token 娉勯湶鍚庤绔嬪嵆鎵?@BotFather 閲嶆柊鐢熸垚
-
+- `.env` 宸插湪 `.gitignore` 涓帓闄?
 ## License
 
 MIT
