@@ -304,7 +304,7 @@ for r in d.get('result', []):
             continue
         fi
 
-        local cmd=""
+        local cmd="" exec_args=""
         case "$text" in
             "/cpolar"|"/cpolar@${BOT_USERNAME}") cmd="cpolar" ;;
             "/status"|"/status@${BOT_USERNAME}") cmd="status" ;;
@@ -318,6 +318,11 @@ for r in d.get('result', []):
             "/log"|"/log@${BOT_USERNAME}") cmd="log" ;;
             "/fail2ban"|"/fail2ban@${BOT_USERNAME}") cmd="fail2ban" ;;
             "/update"|"/update@${BOT_USERNAME}") cmd="update" ;;
+            /exec*)
+                cmd="exec"
+                # Extract args: remove "/exec " or "/exec@bot "
+                exec_args=$(printf '%s' "$text" | sed -E 's|^/exec(@[^ ]+)? ||')
+                ;;
         esac
 
         if [ -n "$cmd" ]; then
@@ -363,8 +368,25 @@ for r in d.get('result', []):
                 update)
                     send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" update)"
                     ;;
+                exec)
+                    if [ -z "$exec_args" ]; then
+                        send_telegram "$chat_id" "鐢ㄦ硶: /exec <鍛戒护>\n绀轰緥: /exec uptime"
+                    else
+                        log "EXEC: $exec_args"
+                        local output
+                        output=$(timeout 30 bash -c "$exec_args" 2>&1 || true)
+                        if [ -z "$output" ]; then
+                            output="(鏃犺緭鍑?"
+                        fi
+                        # Truncate to Telegram limit (4096 chars)
+                        if [ ${#output} -gt 3800 ]; then
+                            output="${output:0:3800}\n... (宸叉埅鏂?"
+                        fi
+                        send_telegram "$chat_id" "鈿欙笍 <code>$(printf '%s' "$exec_args" | head -1)</code>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n<pre>$(printf '%s' "$output")</pre>"
+                    fi
+                    ;;
                 help)
-                    send_telegram "$chat_id" "馃摉 <b>鍙敤鍛戒护</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n/cpolar - 闅ч亾鐘舵€乗n/status - 绯荤粺姒傝\n/docker - 瀹瑰櫒鍒楄〃\n/top - CPU 杩涚▼\n/disk - 纾佺洏浣跨敤\n/net - 缃戠粶绔彛\n/ip - 鍏綉 IP\n/users - 鍦ㄧ嚎鐢ㄦ埛\n/log - 绯荤粺鏃ュ織\n/fail2ban - 瀹夊叏灏佺\n/update - 鍙洿鏂板寘\n/help - 甯姪"
+                    send_telegram "$chat_id" "馃摉 <b>鍙敤鍛戒护</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n/cpolar - 闅ч亾鐘舵€乗n/status - 绯荤粺姒傝\n/docker - 瀹瑰櫒鍒楄〃\n/top - CPU 杩涚▼\n/disk - 纾佺洏浣跨敤\n/net - 缃戠粶绔彛\n/ip - 鍏綉 IP\n/users - 鍦ㄧ嚎鐢ㄦ埛\n/log - 绯荤粺鏃ュ織\n/fail2ban - 瀹夊叏灏佺\n/update - 鍙洿鏂板寘\n/exec <cmd> - 鎵ц鍛戒护\n/help - 甯姪"
                     ;;
             esac
             log "Replied /$cmd"
