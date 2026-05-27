@@ -313,6 +313,11 @@ for r in d.get('result', []):
             "/disk"|"/disk@${BOT_USERNAME}") cmd="disk" ;;
             "/net"|"/net@${BOT_USERNAME}") cmd="net" ;;
             "/help"|"/help@${BOT_USERNAME}") cmd="help" ;;
+            "/ip"|"/ip@${BOT_USERNAME}") cmd="ip" ;;
+            "/users"|"/users@${BOT_USERNAME}") cmd="users" ;;
+            "/log"|"/log@${BOT_USERNAME}") cmd="log" ;;
+            "/fail2ban"|"/fail2ban@${BOT_USERNAME}") cmd="fail2ban" ;;
+            "/update"|"/update@${BOT_USERNAME}") cmd="update" ;;
         esac
 
         if [ -n "$cmd" ]; then
@@ -343,8 +348,23 @@ for r in d.get('result', []):
                 net)
                     send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" network)"
                     ;;
+                ip)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" ip)"
+                    ;;
+                users)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" users)"
+                    ;;
+                log)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" log)"
+                    ;;
+                fail2ban)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" fail2ban)"
+                    ;;
+                update)
+                    send_telegram "$chat_id" "$(bash "$SCRIPT_DIR/vps-commands.sh" update)"
+                    ;;
                 help)
-                    send_telegram "$chat_id" "馃摉 <b>鍙敤鍛戒护</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n/cpolar - 闅ч亾鐘舵€乗n/status - 绯荤粺姒傝\n/docker - 瀹瑰櫒鍒楄〃\n/top - CPU 杩涚▼\n/disk - 纾佺洏浣跨敤\n/net - 缃戠粶绔彛\n/help - 甯姪"
+                    send_telegram "$chat_id" "馃摉 <b>鍙敤鍛戒护</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n/cpolar - 闅ч亾鐘舵€乗n/status - 绯荤粺姒傝\n/docker - 瀹瑰櫒鍒楄〃\n/top - CPU 杩涚▼\n/disk - 纾佺洏浣跨敤\n/net - 缃戠粶绔彛\n/ip - 鍏綉 IP\n/users - 鍦ㄧ嚎鐢ㄦ埛\n/log - 绯荤粺鏃ュ織\n/fail2ban - 瀹夊叏灏佺\n/update - 鍙洿鏂板寘\n/help - 甯姪"
                     ;;
             esac
             log "Replied /$cmd"
