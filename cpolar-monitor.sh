@@ -1,5 +1,5 @@
 #!/bin/bash
-# cpolar-monitor 鈥?cpolar tunnel monitor with Telegram alerts
+# cpolar-monitor — cpolar tunnel monitor with Telegram alerts
 # Core: tunnel change detection + /cpolar query only
 set -euo pipefail
 
@@ -44,14 +44,14 @@ do_login() {
     resp=$(curl -s -b "$COOKIE_FILE" -c "$COOKIE_FILE" -X POST \
         "https://dashboard.cpolar.com/login" \
         -d "login=${CPOLAR_EMAIL}&password=${CPOLAR_PASSWORD}&csrf_token=${token}" -L)
-    printf '%s' "$resp" | grep -q 'id="captcha-form"' && { log "ERROR: Login failed"; return 1; }
+    if printf '%s' "$resp" | grep -q 'id="captcha-form"'; then log "ERROR: Login failed"; return 1; fi
     log "Login OK"
 }
 
 get_tunnels() {
     local html
     html=$(curl -s -b "$COOKIE_FILE" "https://dashboard.cpolar.com/status")
-    if printf '%s' "$html" | grep -q 'id="captcha-form"'; then
+    if printf '%s' "$html" | grep -q 'id="captcha-form"' || printf '%s' "$html" | grep -q '/login'; then
         rm -f "$COOKIE_FILE"; do_login || return 1
         html=$(curl -s -b "$COOKIE_FILE" "https://dashboard.cpolar.com/status")
     fi
@@ -82,16 +82,16 @@ ensure_and_get() {
 
 format_tunnels() {
     local msg
-    msg=$(printf "馃搵 <b>褰撳墠 cpolar 闅ч亾</b>\n")
+    msg=$(printf "📋 <b>当前 cpolar 隧道</b>\n")
     while IFS='|' read -r name url; do
         [ -z "$url" ] && continue
         if printf '%s' "$url" | grep -q "^tcp://"; then
-            msg=$(printf "%s\n馃枼 %s\n %s" "$msg" "$name" "$url")
+            msg=$(printf "%s\n🖥 %s\n %s" "$msg" "$name" "$url")
         else
-            msg=$(printf "%s\n馃寪 %s\n %s" "$msg" "$name" "$url")
+            msg=$(printf "%s\n🌐 %s\n %s" "$msg" "$name" "$url")
         fi
     done <<< "$1"
-    msg=$(printf "%s\n\n馃晲 %s" "$msg" "$(date '+%Y-%m-%d %H:%M:%S')")
+    msg=$(printf "%s\n\n🕐 %s" "$msg" "$(date '+%Y-%m-%d %H:%M:%S')")
     printf '%s' "$msg"
 }
 
@@ -119,10 +119,10 @@ do_check() {
     if [ -n "$added" ] || [ -n "$removed" ]; then
         log "Tunnel change detected"
         local msg
-        msg=$(printf "鈿?<b>cpolar 闅ч亾鍙樻洿</b>\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣")
-        [ -n "$added" ] && { msg=$(printf "%s\n馃啎 <b>鏂板:</b>" "$msg"); while IFS='|' read -r n u; do [ -z "$u" ] && continue; msg=$(printf "%s\n馃煝 <b>%s</b> 鈫?<code>%s</code>" "$msg" "$n" "$u"); done <<< "$added"; }
-        [ -n "$removed" ] && { msg=$(printf "%s\n馃棏 <b>澶辨晥:</b>" "$msg"); while IFS='|' read -r n u; do [ -z "$u" ] && continue; msg=$(printf "%s\n馃敶 <b>%s</b> 鈫?<code>%s</code>" "$msg" "$n" "$u"); done <<< "$removed"; }
-        msg=$(printf "%s\n鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣\n鈿狅笍 璇峰強鏃舵洿鏂拌繛鎺ラ厤缃? "$msg")
+        msg=$(printf "⚡ <b>cpolar 隧道变更</b>\n━━━━━━━━━━━━━━━━━━━━━━")
+        [ -n "$added" ] && { msg=$(printf "%s\n🆕 <b>新增:</b>" "$msg"); while IFS='|' read -r n u; do [ -z "$u" ] && continue; msg=$(printf "%s\n🟢 <b>%s</b> → <code>%s</code>" "$msg" "$n" "$u"); done <<< "$added"; }
+        [ -n "$removed" ] && { msg=$(printf "%s\n🗑 <b>失效:</b>" "$msg"); while IFS='|' read -r n u; do [ -z "$u" ] && continue; msg=$(printf "%s\n🔴 <b>%s</b> → <code>%s</code>" "$msg" "$n" "$u"); done <<< "$removed"; }
+        msg=$(printf "%s\n━━━━━━━━━━━━━━━━━━━━━━\n⚠️ 请及时更新连接配置" "$msg")
         send_telegram "$TELEGRAM_CHAT_ID" "$msg"
     else
         log "No change"
@@ -192,7 +192,7 @@ for r in d.get('result',[]):
                 printf '%s\n' "$tunnels" > "$STATE_FILE"
                 send_telegram "$chat_id" "$(format_tunnels "$tunnels")"
             else
-                send_telegram "$chat_id" "鉂?鑾峰彇澶辫触"
+                send_telegram "$chat_id" "❌ 获取失败"
             fi
         fi
     done
@@ -224,13 +224,11 @@ case "${1:-help}" in
         [ -f "$LOCK_FILE" ] && { pid=$(cat "$LOCK_FILE"); kill "$pid" 2>/dev/null; sleep 1; kill -9 "$pid" 2>/dev/null; rm -f "$LOCK_FILE"; echo "Stopped"; } || echo "Not running" ;;
     status)
         if [ -f "$LOCK_FILE" ] && kill -0 "$(cat "$LOCK_FILE")" 2>/dev/null; then
-            echo "鉁?Running (PID: $(cat "$LOCK_FILE"))"
-            [ -f "$STATE_FILE" ] && { echo ""; echo "Tunnels:"; while IFS='|' read -r n u; do echo "  $n 鈫?$u"; done < "$STATE_FILE"; }
-        else echo "鉂?Not running"; fi ;;
-    log) tail -"${2:-20}" "$LOG_FILE" ;;
-    run) [ -f "$LOCK_FILE" ] && { pid=$(cat "$LOCK_FILE" 2>/dev/null); [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && { echo "Running ($pid)"; exit 0; }; rm -f "$LOCK_FILE"; }
-        echo $$ > "$LOCK_FILE"; trap 'rm -f "$LOCK_FILE"' EXIT INT TERM; daemon_loop ;;
+            echo "✅ Running (PID: $(cat "$LOCK_FILE"))"
+            [ -f "$STATE_FILE" ] && { echo ""; echo "Tunnels:"; while IFS='|' read -r n u; do echo "  $n → $u"; done < "$STATE_FILE"; }
+        else echo "❌ Not running"; fi ;;
+    log) tail -"${2:-20}" "$LOG_FILE" ;;    run) daemon_loop ;;
     help|*)
-        echo "cpolar-monitor 鈥?tunnel change monitor"
+        echo "cpolar-monitor — tunnel change monitor"
         echo "Usage: $(basename "$0") {start|stop|status|log|run|help}" ;;
 esac
