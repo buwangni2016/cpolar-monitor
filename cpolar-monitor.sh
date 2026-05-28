@@ -216,7 +216,6 @@ case "${1:-help}" in
         else echo "❌ Not running"; fi ;;
     log) tail -"${2:-20}" "$LOG_FILE" ;;    run) daemon_loop ;;
     run-once)
-        local tunnels
         tunnels=$(ensure_and_get)
         if [ -n "$tunnels" ]; then
             printf '%s\n' "$tunnels" > "$STATE_FILE"
