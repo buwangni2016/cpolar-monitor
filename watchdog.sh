@@ -2,7 +2,9 @@
 # Watchdog: restart if daemon is dead or consuming too much memory
 LOCK="/opt/cpolar-monitor/cpolar-monitor.lock"
 LOG="/opt/cpolar-monitor/cpolar-monitor.log"
-MAX_RSS_KB=51200  # 50MB threshold
+SCRIPT_DIR="$(dirname "$LOCK")"
+[ -f "${SCRIPT_DIR}/.env" ] && { set -a; source "${SCRIPT_DIR}/.env"; set +a; }
+MAX_RSS_KB=$(( ${MEMORY_LIMIT_MB:-50} * 1024 ))
 
 if [ -f "$LOCK" ]; then
     pid=$(cat "$LOCK" 2>/dev/null)
