@@ -216,7 +216,14 @@ case "${1:-help}" in
         else echo "❌ Not running"; fi ;;
     log) tail -"${2:-20}" "$LOG_FILE" ;;    run) daemon_loop ;;
     run-once)
-        do_check ;;
+        local tunnels
+        tunnels=$(ensure_and_get)
+        if [ -n "$tunnels" ]; then
+            printf '%s\n' "$tunnels" > "$STATE_FILE"
+            send_telegram "$TELEGRAM_CHAT_ID" "$(format_tunnels "$tunnels")"
+        else
+            send_telegram "$TELEGRAM_CHAT_ID" "❌ 获取失败"
+        fi ;;
     help|*)
         echo "cpolar-monitor — tunnel change monitor"
         echo "Usage: $(basename "$0") {start|stop|status|log|run|run-once|help}" ;;
