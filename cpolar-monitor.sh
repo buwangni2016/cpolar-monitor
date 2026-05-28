@@ -215,7 +215,9 @@ case "${1:-help}" in
             [ -f "$STATE_FILE" ] && { echo ""; echo "Tunnels:"; while IFS='|' read -r n u; do echo "  $n → $u"; done < "$STATE_FILE"; }
         else echo "❌ Not running"; fi ;;
     log) tail -"${2:-20}" "$LOG_FILE" ;;    run) daemon_loop ;;
+    run-once)
+        do_check ;;
     help|*)
         echo "cpolar-monitor — tunnel change monitor"
-        echo "Usage: $(basename "$0") {start|stop|status|log|run|help}" ;;
+        echo "Usage: $(basename "$0") {start|stop|status|log|run|run-once|help}" ;;
 esac
