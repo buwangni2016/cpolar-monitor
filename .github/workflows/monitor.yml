@@ -28,12 +28,10 @@ jobs:
 
       - name: Write .env
         run: |
-          cat > .env << 'EOF'
-          CPOLAR_EMAIL=${{ secrets.CPOLAR_EMAIL }}
-          CPOLAR_PASSWORD=${{ secrets.CPOLAR_PASSWORD }}
-          TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}
-          EOF
+          echo "CPOLAR_EMAIL=${{ secrets.CPOLAR_EMAIL }}" > .env
+          echo "CPOLAR_PASSWORD=${{ secrets.CPOLAR_PASSWORD }}" >> .env
+          echo "TELEGRAM_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> .env
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> .env
 
       - name: Run check
         run: bash cpolar-monitor.sh run-once
