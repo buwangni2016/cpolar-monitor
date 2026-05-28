@@ -147,40 +147,24 @@ do_telegram_poll() {
     [ -z "$updates" ] && return 0
     printf '%s' "$updates" | grep -q '"update_id"' || return 0
 
-    local uid last_uid
-    for uid in $(printf '%s' "$updates" | grep -oP '"update_id":\K\d+'); do
+    # One Python call for all updates (was 3 calls per message)
+    local parsed last_uid=""
+    parsed=$(printf '%s' "$updates" | python3 -c "
+import json,sys
+d=json.loads(sys.stdin.read())
+for r in d.get('result',[]):
+ uid=r.get('update_id','')
+ msg=r.get('message',{})
+ is_bot='1' if msg.get('from',{}).get('is_bot') else '0'
+ text=msg.get('text','').replace('\t',' ').replace('\n',' ')
+ chat_id=str(msg.get('chat',{}).get('id',''))
+ print(str(uid)+'\t'+is_bot+'\t'+chat_id+'\t'+text)
+" 2>/dev/null || true)
+    [ -z "$parsed" ] && return 0
+
+    while IFS=$'\t' read -r uid is_bot chat_id text; do
         last_uid=$uid
-
-        # Skip bot's own messages
-        local is_bot
-        is_bot=$(python3 -c "
-import json,sys
-d=json.loads(sys.stdin.read())
-for r in d.get('result',[]):
-    if r.get('update_id')==${uid}:
-        print('1' if r.get('message',{}).get('from',{}).get('is_bot') else '0')
-        break
-" <<< "$updates" 2>/dev/null || true)
         [ "$is_bot" = "1" ] && continue
-
-        local text chat_id
-        text=$(python3 -c "
-import json,sys
-d=json.loads(sys.stdin.read())
-for r in d.get('result',[]):
-    if r.get('update_id')==${uid}:
-        print(r.get('message',{}).get('text',''))
-        break
-" <<< "$updates" 2>/dev/null || true)
-        chat_id=$(python3 -c "
-import json,sys
-d=json.loads(sys.stdin.read())
-for r in d.get('result',[]):
-    if r.get('update_id')==${uid}:
-        print(r.get('message',{}).get('chat',{}).get('id',''))
-        break
-" <<< "$updates" 2>/dev/null || true)
-
         [ -z "$text" ] || [ -z "$chat_id" ] && continue
         [ "$chat_id" != "$TELEGRAM_CHAT_ID" ] && { log "Ignored: $chat_id"; continue; }
 
@@ -195,10 +179,9 @@ for r in d.get('result',[]):
                 send_telegram "$chat_id" "❌ 获取失败"
             fi
         fi
-    done
+    done <<< "$parsed"
 
-    # Update offset after batch
-    [ -n "${last_uid:-}" ] && printf '%s\n' "$((last_uid + 1))" > "$OFFSET_FILE"
+    [ -n "$last_uid" ] && printf '%s\n' "$((last_uid + 1))" > "$OFFSET_FILE"
 }
 
 daemon_loop() {
