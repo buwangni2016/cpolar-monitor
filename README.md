@@ -35,6 +35,7 @@ chmod +x cpolar-monitor.sh
 | `./cpolar-monitor.sh status` | 查看运行状态和当前隧道 |
 | `./cpolar-monitor.sh log [n]` | 查看最近 n 行日志（默认 20） |
 | `./cpolar-monitor.sh run` | 前台运行（调试用） |
+| `./cpolar-monitor.sh run-once` | 执行一次检查后退出（CI/CD 用） |
 
 ## Telegram Bot 命令
 
@@ -57,6 +58,21 @@ chmod +x cpolar-monitor.sh
 # 每 5 分钟检查一次，如果守护进程挂了就自动重启
 */5 * * * * /path/to/cpolar-monitor/watchdog.sh
 ```
+
+## GitHub Actions（免 VPS 方案）
+
+无需 VPS，利用 GitHub Actions 每 10 分钟自动检查：
+
+1. Fork 本仓库
+2. 在仓库 Settings → Secrets and variables → Actions 中添加：
+   - `CPOLAR_EMAIL` — cpolar 账号邮箱
+   - `CPOLAR_PASSWORD` — cpolar 密码
+   - `TELEGRAM_TOKEN` — Telegram Bot Token
+   - `TELEGRAM_CHAT_ID` — Telegram Chat ID
+3. 启用 Actions（首次 Fork 需手动启用）
+4. Cookie 和隧道状态通过 `actions/cache` 持久化
+
+> ⚠️ GitHub Actions 免费账户每月 2000 分钟，每 10 分钟一次约用 1440 分钟/月，注意额度。
 
 ## 依赖
 
