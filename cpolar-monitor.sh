@@ -107,13 +107,17 @@ do_check() {
         return 0
     fi
 
-    local old new added removed
-    old=$(mktemp); new=$(mktemp)
-    sort "$STATE_FILE" > "$old"
-    printf '%s\n' "$tunnels" | sort > "$new"
-    added=$(comm -13 "$old" "$new" || true)
-    removed=$(comm -23 "$old" "$new" || true)
-    rm -f "$old" "$new"
+    local cur_hash old_hash
+    cur_hash=$(printf '%s\n' "$tunnels" | sort | md5sum | cut -d' ' -f1)
+    old_hash=$(sort "$STATE_FILE" | md5sum | cut -d' ' -f1)
+    if [ "$cur_hash" = "$old_hash" ]; then
+        log "No change"
+        return 0
+    fi
+
+    local added removed
+    added=$(comm -13 <(sort "$STATE_FILE") <(printf '%s\n' "$tunnels" | sort) || true)
+    removed=$(comm -23 <(sort "$STATE_FILE") <(printf '%s\n' "$tunnels" | sort) || true)
     printf '%s\n' "$tunnels" > "$STATE_FILE"
 
     if [ -n "$added" ] || [ -n "$removed" ]; then
