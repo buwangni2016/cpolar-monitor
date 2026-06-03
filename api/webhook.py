@@ -5,6 +5,8 @@ TG_TOKEN   = os.environ.get("TELEGRAM_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 CP_EMAIL   = os.environ.get("CPOLAR_EMAIL", "")
 CP_PASS    = os.environ.get("CPOLAR_PASSWORD", "")
+MATON_KEY  = os.environ.get("MATON_API_KEY", "")
+GH_REPO    = os.environ.get("GH_REPO", "buwangni2016/cpolar-monitor")
 
 
 def cpolar_tunnels():
@@ -64,6 +66,25 @@ def send_tg(chat_id, text):
         pass
 
 
+def trigger_workflow(workflow):
+    payload = json.dumps({"ref": "main"}).encode()
+    req = urllib.request.Request(
+        f"https://gateway.maton.ai/github/repos/{GH_REPO}/actions/workflows/{workflow}/dispatches",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {MATON_KEY}",
+            "Accept": "application/vnd.github.v3+json",
+            "Content-Type": "application/json",
+        })
+    try:
+        urllib.request.urlopen(req, timeout=15)
+        return True
+    except urllib.error.HTTPError as e:
+        return e.code == 204
+    except Exception:
+        return False
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -77,7 +98,9 @@ class Handler(BaseHTTPRequestHandler):
             msg = body.get("message") or body.get("edited_message") or {}
             text = msg.get("text", "")
             chat_id = str(msg.get("chat", {}).get("id", ""))
-            if text == "/cpolar" and chat_id == TG_CHAT_ID:
+            if chat_id != TG_CHAT_ID:
+                pass
+            elif text == "/cpolar":
                 tunnels = cpolar_tunnels()
                 if tunnels:
                     lines = ["<b>📋 当前 cpolar 隧道</b>"]
@@ -89,6 +112,11 @@ class Handler(BaseHTTPRequestHandler):
                     send_tg(chat_id, "\n".join(lines))
                 else:
                     send_tg(chat_id, "❌ cpolar 登录失败")
+            elif text == "/update mp":
+                send_tg(chat_id, "🔄 正在触发 MoviePilot 更新，请稍候...")
+                ok = trigger_workflow("update-moviepilot.yml")
+                if not ok:
+                    send_tg(chat_id, "❌ 触发更新失败，请检查 GitHub Actions 配置。")
         except Exception:
             pass
         self.send_response(200)
