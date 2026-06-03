@@ -5,13 +5,36 @@
 - `/cpolar` — 查询当前 cpolar 隧道列表
 - `/update mp` — 触发 MoviePilot 自动更新
 
+## 关联仓库
+
+本仓库是三个关联仓库之一，协同完成 MoviePilot 自动更新：
+
+```
+[cpolar-monitor] ──触发──▶ [maton-runner] ──文档──▶ [maton-agent-memory]
+  本仓库（Webhook）           Windows Runner            项目总览文档
+  接收 Telegram 命令           执行更新脚本
+```
+
+| 仓库 | 作用 | 链接 |
+|------|------|------|
+| **cpolar-monitor**（本仓库） | 接收 Telegram 命令，触发下游 Runner | — |
+| **maton-runner**（下游） | Windows Runner，执行 MoviePilot 完整更新流程 | [github.com/buwangni2016/maton-runner](https://github.com/buwangni2016/maton-runner) |
+| **maton-agent-memory**（文档） | 三个仓库的完整架构说明与上下文 | [github.com/buwangni2016/maton-agent-memory](https://github.com/buwangni2016/maton-agent-memory) |
+
 ## 架构
 
 ```
-Telegram → Vercel webhook (api/webhook.py)
-                ├─ /cpolar    → 直接登录 cpolar dashboard 抓取隧道信息
-                └─ /update mp → 触发 maton-runner/update.yml (via Maton API Gateway)
-                                        └─ Windows Runner 执行更新脚本
+用户
+ ↓ 发送命令
+Telegram Bot
+ ↓ POST
+Vercel webhook (api/webhook.py)
+ ├─ /cpolar    → 直接登录 cpolar dashboard 抓取隧道信息 → 回复 Telegram
+ └─ /update mp → Maton API Gateway → maton-runner/update.yml（workflow_dispatch）
+                                              ↓
+                                     Windows Runner 执行更新
+                                              ↓
+                                     Telegram 通知结果
 ```
 
 ## 文件说明
@@ -20,7 +43,7 @@ Telegram → Vercel webhook (api/webhook.py)
 |------|------|
 | `api/webhook.py` | Vercel serverless 入口，处理 Telegram 消息 |
 | `cpolar-monitor.sh` | cpolar 隧道变化监控脚本（供 monitor.yml 手动触发使用）|
-| `.github/workflows/monitor.yml` | 手动触发的 cpolar 监控（已关闭定时调度）|
+| `.github/workflows/monitor.yml` | 手动触发的 cpolar 监控（已关闭定时调度，避免消耗 Actions 额度）|
 | `vercel.json` | Vercel 路由配置 |
 
 ## Vercel 环境变量
@@ -28,12 +51,8 @@ Telegram → Vercel webhook (api/webhook.py)
 | 变量 | 说明 |
 |------|------|
 | `TELEGRAM_TOKEN` | Bot Token |
-| `TELEGRAM_CHAT_ID` | 授权的 Chat ID（只响应此 ID 的消息）|
+| `TELEGRAM_CHAT_ID` | 授权的 Chat ID（只响应此 ID 的消息，其他一律忽略）|
 | `CPOLAR_EMAIL` | cpolar 账号 |
 | `CPOLAR_PASSWORD` | cpolar 密码 |
-| `MATON_API_KEY` | Maton API Key，用于调用 GitHub Actions |
-
-## 相关仓库
-
-- [maton-runner](https://github.com/buwangni2016/maton-runner) — Windows Runner，执行 MoviePilot 更新
-- [maton-agent-memory](https://github.com/buwangni2016/maton-agent-memory) — 项目完整说明文档
+| `MATON_API_KEY` | Maton API Key，用于调用 maton-runner 的 GitHub Actions |
+| `GH_REPO` | 默认值 `buwangni2016/cpolar-monitor`（trigger_workflow 的默认仓库）|
