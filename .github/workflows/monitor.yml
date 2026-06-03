@@ -2,7 +2,7 @@ name: cpolar-monitor
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '0 * * * *'   # 每小时一次（原来每10分钟，会耗尽免费额度）
   workflow_dispatch:
 
 jobs:
