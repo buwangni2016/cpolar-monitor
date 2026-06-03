@@ -1,0 +1,99 @@
+name: Update MoviePilot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: self-hosted
+    timeout-minutes: 15
+
+    steps:
+      - name: 备份 config 文件夹
+        shell: powershell
+        run: |
+          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
+          $backupDir = "$moviepilotDir\config_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+          if (Test-Path "$moviepilotDir\config") {
+            Copy-Item -Path "$moviepilotDir\config" -Destination $backupDir -Recurse
+            Write-Host "备份完成: $backupDir"
+            "BACKUP_DIR=$backupDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } else {
+            Write-Host "config 目录不存在，跳过备份"
+          }
+
+      - name: 停止 MoviePilot 进程
+        shell: powershell
+        run: |
+          $proc = Get-Process -Name "MoviePilot" -ErrorAction SilentlyContinue
+          if ($proc) {
+            Stop-Process -Name "MoviePilot" -Force
+            Start-Sleep -Seconds 3
+            Write-Host "已停止 MoviePilot"
+          } else {
+            Write-Host "MoviePilot 未在运行"
+          }
+
+      - name: 下载并安装最新版本
+        shell: powershell
+        run: |
+          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/developer-wlj/Windows-MoviePilot/releases/latest" `
+            -Headers @{ "User-Agent" = "Mozilla/5.0" }
+          $version = $release.tag_name
+          Write-Host "最新版本: $version"
+
+          $asset = $release.assets | Select-Object -First 1
+          if (-not $asset) { Write-Error "未找到下载资源"; exit 1 }
+
+          $downloadPath = "$env:TEMP\$($asset.name)"
+          Write-Host "下载: $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $downloadPath -UseBasicParsing
+
+          if ($asset.name -like "*.zip") {
+            Expand-Archive -Path $downloadPath -DestinationPath $moviepilotDir -Force
+          } else {
+            Copy-Item -Path $downloadPath -Destination "$moviepilotDir\MoviePilot.exe" -Force
+          }
+          Write-Host "安装完成: $version"
+
+      - name: 恢复 config 文件夹
+        shell: powershell
+        run: |
+          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
+          $backupDir = $env:BACKUP_DIR
+          if ($backupDir -and (Test-Path $backupDir)) {
+            if (Test-Path "$moviepilotDir\config") {
+              Remove-Item -Path "$moviepilotDir\config" -Recurse -Force
+            }
+            Copy-Item -Path $backupDir -Destination "$moviepilotDir\config" -Recurse
+            Write-Host "config 已恢复"
+          } else {
+            Write-Host "无备份可恢复，跳过"
+          }
+
+      - name: 以管理员权限启动 MoviePilot
+        shell: powershell
+        run: |
+          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
+          Start-Process -FilePath "$moviepilotDir\MoviePilot.exe" -Verb RunAs -WorkingDirectory $moviepilotDir
+          Start-Sleep -Seconds 5
+          $proc = Get-Process -Name "MoviePilot" -ErrorAction SilentlyContinue
+          if ($proc) {
+            Write-Host "MoviePilot 启动成功，PID: $($proc.Id)"
+          } else {
+            Write-Error "MoviePilot 启动失败"
+            exit 1
+          }
+
+      - name: 通知 Telegram 更新结果
+        if: always()
+        shell: powershell
+        run: |
+          $token = "${{ secrets.TELEGRAM_TOKEN }}"
+          $chatId = "${{ secrets.TELEGRAM_CHAT_ID }}"
+          $status = "${{ job.status }}"
+          $msg = if ($status -eq "success") { "✅ MoviePilot 更新成功！服务已重启。" } else { "❌ MoviePilot 更新失败，请手动检查。" }
+          Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/sendMessage" `
+            -Method Post -ContentType "application/json" `
+            -Body (@{ chat_id = $chatId; text = $msg } | ConvertTo-Json)
