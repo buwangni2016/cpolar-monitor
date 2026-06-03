@@ -95,8 +95,8 @@ class Handler(BaseHTTPRequestHandler):
             text = (msg.get("text") or "").strip()
             chat_id = str(msg.get("chat", {}).get("id", ""))
             if chat_id != TG_CHAT_ID:
-                pass
-            elif text == "/cpolar":
+                return
+            if text == "/cpolar":
                 tunnels = cpolar_tunnels()
                 if tunnels:
                     lines = ["<b>📋 当前 cpolar 隧道</b>"]
