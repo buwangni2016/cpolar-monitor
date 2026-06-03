@@ -12,13 +12,11 @@ GH_REPO    = os.environ.get("GH_REPO", "buwangni2016/cpolar-monitor")
 def cpolar_tunnels():
     cj = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-    # Login: GET csrf token
     resp = opener.open("https://dashboard.cpolar.com/login", timeout=15)
     html = resp.read().decode("utf-8", errors="ignore")
     m = re.search(r'name="csrf_token"\s+value="([^"]+)"', html)
     if not m:
         return None
-    # POST login
     data = urllib.parse.urlencode(
         {"login": CP_EMAIL, "password": CP_PASS, "csrf_token": m.group(1)}).encode()
     req = urllib.request.Request(
@@ -28,10 +26,8 @@ def cpolar_tunnels():
         opener.open(req, timeout=15)
     except urllib.error.HTTPError:
         pass
-    # Fetch status page
     resp = opener.open("https://dashboard.cpolar.com/status", timeout=15)
     html = resp.read().decode("utf-8", errors="ignore")
-    # Parse: strip tags, find URLs
     html_clean = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.DOTALL)
     html_clean = re.sub(r"<style[^>]*>.*?</style>", "", html_clean, flags=re.DOTALL)
     html_clean = re.sub(r"<[^>]+>", "\n", html_clean)
@@ -96,7 +92,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))
             msg = body.get("message") or body.get("edited_message") or {}
-            text = msg.get("text", "")
+            text = (msg.get("text") or "").strip()
             chat_id = str(msg.get("chat", {}).get("id", ""))
             if chat_id != TG_CHAT_ID:
                 pass
@@ -112,11 +108,13 @@ class Handler(BaseHTTPRequestHandler):
                     send_tg(chat_id, "\n".join(lines))
                 else:
                     send_tg(chat_id, "❌ cpolar 登录失败")
-            elif text == "/update mp":
-                send_tg(chat_id, "🔄 正在触发 MoviePilot 更新，请稍候...")
+            elif text.lower() in ("/update mp", "/updatemp"):
+                send_tg(chat_id, "🔄 正在触发 MoviePilot 更新，请稍候...\n（Runner 在线时将自动执行，完成后会收到通知）")
                 ok = trigger_workflow("update.yml", repo="buwangni2016/maton-runner")
-                if not ok:
-                    send_tg(chat_id, "❌ 触发更新失败，请检查 GitHub Actions 配置。")
+                if ok:
+                    send_tg(chat_id, "✅ 更新任务已成功触发，等待 Runner 执行中...")
+                else:
+                    send_tg(chat_id, "❌ 触发更新失败，请检查：\n1. Maton GitHub 连接是否正常\n2. maton-runner 仓库 Actions 是否启用")
         except Exception:
             pass
         self.send_response(200)
