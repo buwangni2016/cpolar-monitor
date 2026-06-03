@@ -12,12 +12,18 @@ jobs:
       - name: 备份 config 文件夹
         shell: powershell
         run: |
-          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
-          $backupDir = "$moviepilotDir\config_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-          if (Test-Path "$moviepilotDir\config") {
-            Copy-Item -Path "$moviepilotDir\config" -Destination $backupDir -Recurse
-            Write-Host "备份完成: $backupDir"
-            "BACKUP_DIR=$backupDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $InstallDir = "C:\Program Files (x86)\MoviePilot"
+          $ConfigDir  = "$InstallDir\project\MoviePilot\config"
+          $BackupRoot = "C:\MoviePilotBackup"
+          $stamp      = Get-Date -Format "yyyyMMdd_HHmmss"
+          $BackupDir  = "$BackupRoot\config_$stamp"
+
+          if (-not (Test-Path $BackupRoot)) { New-Item -ItemType Directory -Path $BackupRoot | Out-Null }
+          if (Test-Path $ConfigDir) {
+            Copy-Item -Path $ConfigDir -Destination $BackupDir -Recurse -Force
+            Write-Host "备份完成: $BackupDir"
+            "BACKUP_DIR=$BackupDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+            "CONFIG_DIR=$ConfigDir" | Out-File -FilePath $env:GITHUB_ENV -Append
           } else {
             Write-Host "config 目录不存在，跳过备份"
           }
@@ -25,11 +31,12 @@ jobs:
       - name: 停止 MoviePilot 进程
         shell: powershell
         run: |
-          $proc = Get-Process -Name "MoviePilot" -ErrorAction SilentlyContinue
-          if ($proc) {
-            Stop-Process -Name "MoviePilot" -Force
+          $InstallDir = "C:\Program Files (x86)\MoviePilot"
+          $procs = Get-Process | Where-Object { $_.Path -and $_.Path -like "$InstallDir*" }
+          if ($procs) {
+            $procs | Stop-Process -Force
             Start-Sleep -Seconds 3
-            Write-Host "已停止 MoviePilot"
+            Write-Host "已停止 $($procs.Count) 个进程"
           } else {
             Write-Host "MoviePilot 未在运行"
           }
@@ -37,63 +44,77 @@ jobs:
       - name: 下载并安装最新版本
         shell: powershell
         run: |
-          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/developer-wlj/Windows-MoviePilot/releases/latest" `
-            -Headers @{ "User-Agent" = "Mozilla/5.0" }
+          $InstallDir = "C:\Program Files (x86)\MoviePilot"
+          $GhProxy    = "https://hk.gh-proxy.org/"
+          $Repo       = "developer-wlj/Windows-MoviePilot"
+
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" `
+            -Headers @{"User-Agent"="MoviePilot-Updater"}
           $version = $release.tag_name
-          Write-Host "最新版本: $version"
+          $asset   = $release.assets | Where-Object { $_.name -like "*win64*.exe" } | Select-Object -First 1
+          if (-not $asset) { $asset = $release.assets | Where-Object { $_.name -like "*.exe" } | Select-Object -First 1 }
+          Write-Host "最新版本: $version | 文件: $($asset.name)"
 
-          $asset = $release.assets | Select-Object -First 1
-          if (-not $asset) { Write-Error "未找到下载资源"; exit 1 }
-
-          $downloadPath = "$env:TEMP\$($asset.name)"
-          Write-Host "下载: $($asset.browser_download_url)"
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $downloadPath -UseBasicParsing
-
-          if ($asset.name -like "*.zip") {
-            Expand-Archive -Path $downloadPath -DestinationPath $moviepilotDir -Force
+          $installerPath = "$env:TEMP\MoviePilot_$version.exe"
+          if (-not (Test-Path $installerPath)) {
+            $url = "${GhProxy}$($asset.browser_download_url)"
+            Write-Host "下载: $url"
+            Invoke-WebRequest -Uri $url -OutFile $installerPath -UseBasicParsing
+            Write-Host "下载完成: $([math]::Round((Get-Item $installerPath).Length/1MB,1)) MB"
           } else {
-            Copy-Item -Path $downloadPath -Destination "$moviepilotDir\MoviePilot.exe" -Force
+            Write-Host "已缓存，跳过下载"
           }
-          Write-Host "安装完成: $version"
+
+          $proc = Start-Process -FilePath $installerPath `
+            -ArgumentList "/VERYSILENT /NORESTART /DIR=`"$InstallDir`"" `
+            -Wait -PassThru
+          Write-Host "安装完成，退出码: $($proc.ExitCode)"
 
       - name: 恢复 config 文件夹
         shell: powershell
         run: |
-          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
-          $backupDir = $env:BACKUP_DIR
-          if ($backupDir -and (Test-Path $backupDir)) {
-            if (Test-Path "$moviepilotDir\config") {
-              Remove-Item -Path "$moviepilotDir\config" -Recurse -Force
-            }
-            Copy-Item -Path $backupDir -Destination "$moviepilotDir\config" -Recurse
-            Write-Host "config 已恢复"
+          $BackupDir = $env:BACKUP_DIR
+          $ConfigDir = $env:CONFIG_DIR
+          if ($BackupDir -and (Test-Path $BackupDir)) {
+            if (Test-Path $ConfigDir) { Remove-Item -Path $ConfigDir -Recurse -Force }
+            Copy-Item -Path $BackupDir -Destination $ConfigDir -Recurse -Force
+            Write-Host "config 已恢复: $ConfigDir"
           } else {
-            Write-Host "无备份可恢复，跳过"
+            Write-Host "无备份，跳过恢复"
           }
 
-      - name: 以管理员权限启动 MoviePilot
+      - name: 注册自启动并启动 MoviePilot
         shell: powershell
         run: |
-          $moviepilotDir = "${{ vars.MOVIEPILOT_DIR }}"
-          Start-Process -FilePath "$moviepilotDir\MoviePilot.exe" -Verb RunAs -WorkingDirectory $moviepilotDir
+          $InstallDir = "C:\Program Files (x86)\MoviePilot"
+          $exePath    = "$InstallDir\project\MoviePilot.exe"
+          $TaskName   = "MoviePilot AutoStart"
+
+          $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+          if ($existing) { Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false }
+
+          $action    = New-ScheduledTaskAction -Execute $exePath
+          $trigger   = New-ScheduledTaskTrigger -AtLogon
+          $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit 0
+          $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -RunLevel Highest -LogonType Interactive
+          Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger `
+            -Settings $settings -Principal $principal -Force | Out-Null
+          Write-Host "自启动任务已注册"
+
+          Start-Process -FilePath $exePath
           Start-Sleep -Seconds 5
-          $proc = Get-Process -Name "MoviePilot" -ErrorAction SilentlyContinue
-          if ($proc) {
-            Write-Host "MoviePilot 启动成功，PID: $($proc.Id)"
-          } else {
-            Write-Error "MoviePilot 启动失败"
-            exit 1
-          }
+          $running = Get-Process | Where-Object { $_.Path -eq $exePath }
+          if ($running) { Write-Host "MoviePilot 启动成功 PID: $($running.Id)" }
+          else { Write-Host "启动完成，请手动确认" }
 
       - name: 通知 Telegram 更新结果
         if: always()
         shell: powershell
         run: |
-          $token = "${{ secrets.TELEGRAM_TOKEN }}"
+          $token  = "${{ secrets.TELEGRAM_TOKEN }}"
           $chatId = "${{ secrets.TELEGRAM_CHAT_ID }}"
           $status = "${{ job.status }}"
-          $msg = if ($status -eq "success") { "✅ MoviePilot 更新成功！服务已重启。" } else { "❌ MoviePilot 更新失败，请手动检查。" }
+          $msg    = if ($status -eq "success") { "✅ MoviePilot 更新成功！服务已重启。" } else { "❌ MoviePilot 更新失败，请手动检查。" }
           Invoke-RestMethod -Uri "https://api.telegram.org/bot$token/sendMessage" `
             -Method Post -ContentType "application/json" `
             -Body (@{ chat_id = $chatId; text = $msg } | ConvertTo-Json)
