@@ -66,10 +66,10 @@ def send_tg(chat_id, text):
         pass
 
 
-def trigger_workflow(workflow):
+def trigger_workflow(workflow, repo=None):
     payload = json.dumps({"ref": "main"}).encode()
     req = urllib.request.Request(
-        f"https://gateway.maton.ai/github/repos/{GH_REPO}/actions/workflows/{workflow}/dispatches",
+        f"https://gateway.maton.ai/github/repos/{repo or GH_REPO}/actions/workflows/{workflow}/dispatches",
         data=payload,
         headers={
             "Authorization": f"Bearer {MATON_KEY}",
@@ -114,7 +114,7 @@ class Handler(BaseHTTPRequestHandler):
                     send_tg(chat_id, "❌ cpolar 登录失败")
             elif text == "/update mp":
                 send_tg(chat_id, "🔄 正在触发 MoviePilot 更新，请稍候...")
-                ok = trigger_workflow("update-moviepilot.yml")
+                ok = trigger_workflow("update.yml", repo="buwangni2016/maton-runner")
                 if not ok:
                     send_tg(chat_id, "❌ 触发更新失败，请检查 GitHub Actions 配置。")
         except Exception:
